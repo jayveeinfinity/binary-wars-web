@@ -103,6 +103,11 @@
         display: flex;
         justify-content: space-between;
     }
+
+    .retry-panel {
+        display: flex;
+        justify-content: center;
+    }
 </style>
 </head>
 <body>
@@ -149,30 +154,52 @@
 
     <div class="status" id="status"></div>
 
-    <!-- <button onclick="newGame()">Next Number</button> -->
+    <div class="retry-panel">
+        <button onclick="init()" id="retry" style="display: none;">Retry</button>
+    </div>
 </div>
 
 <script>
     let level = 0;
     let score = 0;
-    let selectedBitIndex = 7;
+    let selectedBitIndex = 0;
+    let moves = 0;
+    let currentTime = 0;
 
     const BIT_COUNT = 8;
     let originalDecimal = 0;
     let remainingDecimal = 0;
+    let movesNeeded = 0;
     let bits = [];
 
-    let timeLeft = 30;
+    let defaultTime = 30;
+    let timeLeft = 0;
     let timerInterval = null;
 
     const FULL_DASH_ARRAY = 339.292;
 
+    const winSound = new Audio("assets/audio/Correct.wav");
+    winSound.volume = 0.6;
+
+    const gameOverSound = new Audio("assets/audio/Wrong.wav");
+    gameOverSound.volume = 0.6;
+
+    const isSFX = false;
+
     function init() {
-        updateScore();
+        score = 0;
+        level = 0;
+        timeLeft = defaultTime;
+        currentTime = defaultTime;
+
+        startTimer();
+
         newGame();
     }
 
     function newGame() {
+        updateScore();
+
         originalDecimal = Math.floor(Math.random() * 256);
         while(originalDecimal <= 0) {
             originalDecimal = Math.floor(Math.random() * 256);
@@ -182,15 +209,29 @@
 
         document.getElementById("decimalValue").textContent = remainingDecimal;
         document.getElementById("status").textContent = "";
+
+        setMoves(originalDecimal);
         reset();
         increaseLevel();
-        startTimer();
         renderBits();
+    }
+
+    function setMoves(decimal) {
+        let count = 0;
+
+        while (decimal > 0) {
+            decimal &= (decimal - 1);
+            count++;
+        }
+
+        movesNeeded = count;
+
+        console.log(`Moves to solve ${count}`);
     }
 
     function startTimer() {
         clearInterval(timerInterval);
-        timeLeft = 30;
+        timeLeft = defaultTime;
 
         updateTimerUI();
 
@@ -217,13 +258,15 @@
             status.textContent = "⏱ Time's up!";
             status.style.color = "#ef4444";
         }
+
+        document.getElementById("retry").style.display = "block";
     }
 
     function updateTimerUI() {
         const circle = document.getElementById("timerCircle");
         const text = document.getElementById("timerText");
 
-        const progress = timeLeft / 30;
+        const progress = timeLeft / defaultTime;
         circle.style.strokeDashoffset =
             FULL_DASH_ARRAY * (1 - progress);
 
@@ -231,7 +274,8 @@
     }
 
     function reset() {
-        selectedBitIndex = 7;
+        selectedBitIndex = 0;
+        moves = 0;
     }
 
     function increaseLevel() {
@@ -240,7 +284,7 @@
     }
 
     function computeScore() {
-        score = score + 10;
+        score = score + calculateScore((currentTime - timeLeft), timeLeft, moves, movesNeeded, bits.length);
         updateScore();
     }
 
@@ -285,6 +329,8 @@
         if (bits[index] === 0) {
             bits[index] = 1;
             remainingDecimal -= bitValue;
+
+            moves++;
         } else {
             bits[index] = 0;
             remainingDecimal += bitValue;
@@ -324,12 +370,76 @@
             status.textContent = "✅ Correct!";
             status.style.color = "#22c55e";
 
+            playWinSfx();
+
             computeScore();
+            currentTime = timeLeft;
             newGame();
         } else {
             status.textContent = `Current value: ${value}`;
             status.style.color = "#facc15";
+
+            if(remainingDecimal < 0) {
+                playGameOverSfx();
+                endGame(false);
+            }
         }
+    }
+
+    function calculateScore(
+        timeTaken,
+        timeLimit,
+        movesUsed,
+        minMoves,
+        bitCount
+    ) {
+        console.log(`*****************************`)
+        console.log(`=============================`)
+        console.log(`timeTaken: ${timeTaken}`);
+        console.log(`timeLimit: ${timeLimit}`);
+        console.log(`movesUsed: ${movesUsed}`);
+        console.log(`minMoves: ${minMoves}`);
+        console.log(`bitCount: ${bitCount}`);
+        console.log(`=============================`)
+
+        const BASE_SCORE = 10;
+
+        const timeBonus =
+            Math.max(0, timeLimit - timeTaken) * 10;
+
+        const efficiencyBonus =
+            Math.max(0, minMoves * 2 - movesUsed) * 50;
+
+        const difficultyMultiplier = bitCount / 4;
+
+        console.log(`=============================`)
+        console.log(`timeBonus: ${timeBonus}`);
+        console.log(`efficiencyBonus: ${efficiencyBonus}`);
+        console.log(`=============================`)
+
+        let newScore = Math.floor(
+            (BASE_SCORE + timeBonus + efficiencyBonus)
+            * difficultyMultiplier
+        );
+        console.log(`=============================`)
+        console.log(`calculated score: ${newScore}`)
+        console.log(`=============================`)
+        console.log(`*****************************`)
+        return newScore;
+    }
+
+    function playWinSfx() {
+        if(!isSFX) return;
+
+        winSound.currentTime = 0; // allow replay
+        winSound.play();
+    }
+
+    function playGameOverSfx() {
+        if(!isSFX) return;
+
+        gameOverSound.currentTime = 0; // allow replay
+        gameOverSound.play();
     }
 
     // document.addEventListener("keydown", (e) => {
