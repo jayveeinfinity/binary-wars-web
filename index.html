@@ -184,7 +184,7 @@
     const gameOverSound = new Audio("assets/audio/Wrong.wav");
     gameOverSound.volume = 0.6;
 
-    const isSFX = false;
+    const isSFX = true;
 
     function init() {
         score = 0;
@@ -247,6 +247,7 @@
     }
 
     function endGame(won) {
+        playGameOverSfx();
         clearInterval(timerInterval);
 
         const status = document.getElementById("status");
@@ -380,7 +381,6 @@
             status.style.color = "#facc15";
 
             if(remainingDecimal < 0) {
-                playGameOverSfx();
                 endGame(false);
             }
         }
