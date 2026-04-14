@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GameMatch extends Model
 {
+    protected $table = 'matches';
+
     protected $fillable = [
         'player1_id',
         'player2_id',

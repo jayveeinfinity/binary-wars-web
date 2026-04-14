@@ -1,4 +1,4 @@
-<div class="w-full" x-data="{ searching: @entangle('isSearching') }">
+<div class="w-full" x-data="{ searching: @entangle('isSearching') }" @if($isSearching) wire:poll.5s="heartbeat" @endif>
     <div class="relative overflow-hidden bg-slate-900/50 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl">
         
         <!-- Header Section -->

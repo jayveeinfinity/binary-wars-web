@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Livewire\Component;
 use App\Models\GameMatch;
 use App\Events\MatchFound;
+use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 
 class Lobby extends Component
@@ -13,15 +14,22 @@ class Lobby extends Component
     public $isSearching = false;
     public $searchDuration = 0;
     public $currentMatchId = null;
+    public $userId = null;
+
+    public function mount()
+    {
+        $this->userId = Auth::id();
+    }
 
     public function findMatch()
     {
         $user = Auth::user();
         $this->isSearching = true;
 
-        // Look for an existing match with a waiting player
+        // Look for an existing match with a waiting player that has been updated recently (within last 30 seconds)
         $existingMatch = GameMatch::where('status', 'searching')
             ->where('player1_id', '!=', $user->id)
+            ->where('updated_at', '>=', Carbon::now()->subSeconds(30))
             ->first();
 
         if ($existingMatch) {
@@ -34,10 +42,10 @@ class Lobby extends Component
 
             $this->currentMatchId = $existingMatch->id;
             
-            // Broadcast event
+            // Broadcast event to the other player (player1)
             broadcast(new MatchFound($existingMatch))->toOthers();
             
-            // Redirect to game
+            // Redirect current player (player2) to game
             return redirect()->route('game', ['matchId' => $existingMatch->id]);
         } else {
             // Create a new searching match
@@ -62,16 +70,22 @@ class Lobby extends Component
         $this->currentMatchId = null;
     }
 
-    public function getListeners()
+    // Keep the match updated so others know we are still searching
+    public function heartbeat()
     {
-        return [
-            "echo-private:user." . Auth::id() . ",MatchFound" => 'onMatchFound',
-        ];
+        if ($this->isSearching && $this->currentMatchId) {
+            $match = GameMatch::find($this->currentMatchId);
+            if ($match) {
+                $match->touch();
+            }
+        }
     }
 
+    #[On("echo-private:user.{userId},MatchFound")]
     public function onMatchFound($event)
     {
-        return redirect()->route('game', ['matchId' => $event['match']['id']]);
+        $matchId = is_array($event['match']) ? $event['match']['id'] : $event['match']->id;
+        return redirect()->route('game', ['matchId' => $matchId]);
     }
 
     public function render()

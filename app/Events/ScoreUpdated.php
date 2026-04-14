@@ -29,4 +29,9 @@ class ScoreUpdated implements ShouldBroadcast
             new PrivateChannel('match.' . $this->matchId),
         ];
     }
+
+    public function broadcastAs(): string
+    {
+        return 'ScoreUpdated';
+    }
 }

@@ -27,4 +27,9 @@ class MatchFound implements ShouldBroadcast
             new PrivateChannel('user.' . $this->match->player2_id),
         ];
     }
+
+    public function broadcastAs(): string
+    {
+        return 'MatchFound';
+    }
 }
